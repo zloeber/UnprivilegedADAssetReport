@@ -1,0 +1,21 @@
+Group,SID,Level,AdminSDHolder,Type,Notes
+Account Operators,S-1-5-32-548,Domain,TRUE,Group,
+Administrator,S-1-5-21-<domain>-500,Domain,TRUE,Account,
+Administrators,S-1-5-32-544,Domain,TRUE,Group,
+Backup Operators,S-1-5-32-551,Domain,TRUE,Group,
+Domain Admins,S-1-5-21-<domain>-512,Domain,TRUE,Group,
+Domain Controllers,S-1-5-21-<domain>-516,Domain,TRUE,Group,
+Enterprise Admins,S-1-5-21-<root domain>-519,Forest,TRUE,Group,
+Krbtgt,S-1-5-21-<domain>-502,Domain,TRUE,Account,
+Print Operators,S-1-5-32-550,Domain,TRUE,Group,
+Read-only Domain Controllers,S-1-5-21-<domain>-521,Domain,TRUE,Group,
+Replicators,S-1-5-32-552,Domain,TRUE,Group,Should have no members
+Schema Admins,S-1-5-21-<root domain>-518,Forest,TRUE,Group,Should have no members
+Server Operators,S-1-5-32-549,Domain,TRUE,Group,
+Cert Publishers,S-1-5-21-<domain>-517,Domain,FALSE,Group,Was AdminSDHolder for windows 2000
+Group  Policy Creator Owners,S-1-5-21-<domain>-520,Domain,FALSE,Group,
+Enterprise Read-Only Domain Controllers,S-1-5-21-<root domain>-498 ,Forest,TRUE,Group,
+Read-only Domain Controllers,S-1-5-21-<domain>-521,Domain,TRUE,Group,
+Hyper-V Administrators,S-1-5-32-578 ,Domain,FALSE,Group,
+Enterprise Domain Controllers,S-1-5-9,Forest,TRUE,Group,
+,,,,,
