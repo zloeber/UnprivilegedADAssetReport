@@ -1,5 +1,4 @@
-Function Search-AD
-{
+Function Search-AD {
 # Original Author (largely unmodified btw): 
 #  http://becomelotr.wordpress.com/2012/11/02/quick-active-directory-search-with-pure-powershell/
     param (
@@ -8,46 +7,31 @@ Function Search-AD
         [string]$SearchRoot,
         [switch]$DontJoinAttributeValues
     )
-    if ($SearchRoot) 
-    { 
+    if ($SearchRoot) { 
         $Root = [ADSI]$SearchRoot
     }
-    else 
-    {
+    else {
         $Root = [ADSI]''
     }
-    if ($Filter)
-    {
+    if ($Filter){
         $LDAP = "(&({0}))" -f ($Filter -join ')(')
     }
-    else
-    {
+    else {
         $LDAP = "(name=*)"
     }
-    try
-    {
-        (New-Object ADSISearcher -ArgumentList @(
-            $Root,
-            $LDAP,
-            $Properties
-        ) -Property @{
-            PageSize = 1000
-        }).FindAll() | ForEach-Object {
+    try {
+        (New-Object ADSISearcher -ArgumentList @($Root, $LDAP, $Properties) -Property @{PageSize = 1000}).FindAll() | ForEach-Object {
             $ObjectProps = @{}
-            $_.Properties.GetEnumerator() |
-                Foreach-Object {
+            $_.Properties.GetEnumerator() | Foreach-Object {
                     $Val = @($_.Value)
-                    if ($_.Name -ne $null)
-                    {
-                        if ($DontJoinAttributeValues -and ($Val.Count -gt 1))
-                        {
+                    if ($_.Name -ne $null) {
+                        if ($DontJoinAttributeValues -and ($Val.Count -gt 1)) {
                             $ObjectProps.Add(
                                 $_.Name,
                                 ($_.Value)
                             )
                         }
-                        else
-                        {
+                        else {
                             $ObjectProps.Add(
                                 $_.Name,
                                 (-join $_.Value)
@@ -55,15 +39,12 @@ Function Search-AD
                         }
                     }
                 }
-            if ($ObjectProps.psbase.keys.count -ge 1)
-            {
-                New-Object PSObject -Property $ObjectProps |
-                    select $Properties
+            if ($ObjectProps.psbase.keys.count -ge 1) {
+                New-Object PSObject -Property $ObjectProps | Select-Object $Properties
             }
         }
     }
-    catch
-    {
+    catch {
         Write-Warning -Message ('Search-AD: Filter - {0}: Root - {1}: Error - {2}' -f $LDAP,$Root.Path,$_.Exception.Message)
     }
 }

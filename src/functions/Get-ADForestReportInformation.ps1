@@ -6,7 +6,7 @@ Function Get-ADForestReportInformation {
         [Parameter( HelpMessage="A sorted hash of enabled report elements.")]
         $SortedRpts
     )
-    BEGIN {
+    Begin {
         $verbose_timer = $verbose_starttime = Get-Date
         $ldapregex = [regex]'(?<LDAPType>^.+)\=(?<LDAPName>.+$)'
         try {
@@ -14,15 +14,18 @@ Function Get-ADForestReportInformation {
             $schema = [DirectoryServices.ActiveDirectory.ActiveDirectorySchema]::GetCurrentSchema()
             $forest = [System.DirectoryServices.ActiveDirectory.Forest]::GetCurrentForest()
             $GCs = $forest.FindAllGlobalCatalogs()
-            $GCNames = @($GCs | Select Name)
-            $ForestDCs = @($forest.Domains | %{$_.DomainControllers} | Select Name)
-            $ForestGCs = @((($GCs | Sort-Object -Property Name) | Select Name))
+            $GCNames = @($GCs | Select-Object Name)
+            $ForestDCs = @($forest.Domains | Foreach-Object {$_.DomainControllers} | Select-Object Name)
+            $ForestGCs = @((($GCs | Sort-Object -Property Name) | Select-Object Name))
             $schemapartition = $schema.Name
             $RootDSC = [adsi]"LDAP://RootDSE"
             $DomNamingContext = $RootDSC.RootDomainNamingContext
             $ConfigNamingContext = $RootDSC.configurationNamingContext
+            
+            # Start assuming Lync isn't configured in the environment
             $Lync_ConfigPartition = 'None'
 
+            # Based on our connection thus far create a bunch of LDAP paths for use searching later
             $Path_LDAPPolicies = "LDAP://CN=Default Query Policy,CN=Query-Policies,CN=Directory Service,CN=Windows NT,CN=Services,$($ConfigNamingContext)"
             $Path_RecycleBinFeature = "LDAP://CN=Recycle Bin Feature,CN=Optional Features,CN=Directory Service,CN=Windows NT,CN=Services,$($ConfigNamingContext)"
             $Path_TombstoneLifetime = "LDAP://CN=Directory Service,CN=Windows NT,CN=Services,$($ConfigNamingContext)"
@@ -32,6 +35,7 @@ Function Get-ADForestReportInformation {
             $Path_ADSubnets = "LDAP://CN=Subnets,CN=Sites,$($ConfigNamingContext)"
             $Path_ADSiteLinks = "LDAP://CN=Sites,$($ConfigNamingContext)"
             
+            # Initialize a bunch of stuff to be filled out later
             $ExchangeFederations = @()
             $ExchangeServers = @()
             $Lync_Elements = @()
@@ -54,8 +58,8 @@ Function Get-ADForestReportInformation {
             $ADConnected = $false
         }
     }
-    PROCESS {}
-    END {
+    Process {}
+    End {
         if ($ADConnected) {
             Write-Verbose -Message ('Get-ADForestReportInformation {0}: Forest Info - {1}' -f $forest.Name,$((New-TimeSpan $verbose_timer ($verbose_timer = get-date)).totalseconds))
             #region Forest Settings
@@ -97,10 +101,7 @@ Function Get-ADForestReportInformation {
             #endregion Forest Settings
             
             #region DHCP Servers
-            $DHCPServers = @(Search-AD -Filter '(objectclass=dHCPClass)' `
-                                       -Properties Name,WhenCreated `
-                                       -SearchRoot "LDAP://$([string]$ConfigNamingContext)" | 
-                             Where {$_.Name -ne 'DhcpRoot'})
+            $DHCPServers = @(Search-AD -Filter '(objectclass=dHCPClass)' -Properties Name,WhenCreated -SearchRoot "LDAP://$([string]$ConfigNamingContext)" | Where-Object {$_.Name -ne 'DhcpRoot'})
             #endregion DHCP Servers
             
             #region Exchange
@@ -109,7 +110,7 @@ Function Get-ADForestReportInformation {
             if ([ADSI]::Exists($Path_ExchangeVer)) {
                 Write-Verbose -Message ('Get-ADForestReportInformation {0}: Exchange - {1}' -f $forest.Name,$((New-TimeSpan $verbose_timer ($verbose_timer = get-date)).totalseconds))
                 [ADSI]$SchemaPathExchange = $Path_ExchangeVer
-                $ExchangeSchema = ($SchemaPathExchange | Select rangeUpper).rangeUpper
+                $ExchangeSchema = ($SchemaPathExchange | Select-Object rangeUpper).rangeUpper
                 $ExchangeVersion = $SchemaHashExchange[$ExchangeSchema]
                 $Props_ExchOrgs = @('distinguishedName',
                                     'Name')
@@ -215,7 +216,7 @@ Function Get-ADForestReportInformation {
                 Write-Verbose -Message ('Get-ADForestReportInformation {0}: Lync/OCS - {1}' -f $forest.Name,$((New-TimeSpan $verbose_timer ($verbose_timer = get-date)).totalseconds))
                 # Get Lync version in forest
                 [ADSI]$SchemaPathLync = $Path_LyncVer
-                $LyncSchema = ($SchemaPathLync | Select rangeUpper).rangeUpper
+                $LyncSchema = ($SchemaPathLync | Select-Object rangeUpper).rangeUpper
                 $LyncVersion = $SchemaHashLync[$LyncSchema]
                 
                 # Find Lync AD config partition location
@@ -308,8 +309,8 @@ Function Get-ADForestReportInformation {
                 ForestFunctionalLevel = $forest.ForestMode
                 SchemaMaster = $forest.SchemaRoleOwner
                 DomainNamingMaster = $forest.NamingRoleOwner
-                Sites = @(($forest.Sites | Sort-Object -Property Name | Select Name))
-                Domains = @(($forest.Domains | Sort-Object -Property Name | Select Name))
+                Sites = @(($forest.Sites | Sort-Object -Property Name | Select-Object Name))
+                Domains = @(($forest.Domains | Sort-Object -Property Name | Select-Object Name))
                 DomainControllers = $ForestDCs
                 DomainControllersCount = $ForestDCs.Count
                 GlobalCatalogs = $ForestGCs
@@ -506,10 +507,10 @@ Function Get-ADForestReportInformation {
                     [int64]$temp64val = $totalSIDS * ([math]::Pow(2,32))
                     $RIDsIssued = [int32]($($RIDproperty) - $temp64val)
                     $RIDsRemaining = $totalSIDS - $RIDsIssued
-                    $PDCEmulator = $Dom.PdcRoleOwner | select Name
-                    $RIDMaster = $Dom.RidRoleOwner | select Name
-                    $InfrastructureMaster = $Dom.InfrastructureRoleOwner | Select Name
-                    $DomainDCs = @($Dom.DomainControllers | Select Name)
+                    $PDCEmulator = $Dom.PdcRoleOwner | Select-Object Name
+                    $RIDMaster = $Dom.RidRoleOwner | Select-Object Name
+                    $InfrastructureMaster = $Dom.InfrastructureRoleOwner | Select-Object Name
+                    $DomainDCs = @($Dom.DomainControllers | Select-Object Name)
                     $lockoutThreshold = $CurDomainDetails.lockoutThreshold
                     $pwdHistoryLength = $CurDomainDetails.pwdHistoryLength
                     $minPwdLength = $CurDomainDetails.minPwdLength
@@ -791,7 +792,7 @@ Function Get-ADForestReportInformation {
                     $SMSServers = @(Search-AD -Filter '(objectclass=mSSMSManagementPoint)' `
                                               -Properties dNSHostName,mSSMSSiteCode,mSSMSVersion,mSSMSDefaultMP,mSSMSDeviceManagementPoint `
                                               -SearchRoot "LDAP://$DomainDN" | 
-                                    Select @{n='Domain';e={$Dom.Name}},dNSHostName,mSSMSSiteCode,mSSMSVersion,mSSMSDefaultMP,mSSMSDeviceManagementPoint)
+                                    Select-Object @{n='Domain';e={$Dom.Name}},dNSHostName,mSSMSSiteCode,mSSMSVersion,mSSMSDefaultMP,mSSMSDeviceManagementPoint)
                     #endregion SMS Servers
 
                     #region SMS Sites
@@ -817,7 +818,7 @@ Function Get-ADForestReportInformation {
                                               -Filter "(ObjectCategory=group)(Name=RAS and IAS Servers)" `
                                               -Properties member -DontJoinAttributeValues).member | 
                                     Foreach {
-                                        [adsi]"LDAP://$($_)" | select @{n='Domain';e={$Dom.Name}},
+                                        [adsi]"LDAP://$($_)" | Select-Object @{n='Domain';e={$Dom.Name}},
                                                                       @{n='Name';e={-join $_.name}},
                                                                       @{n='Type';e={$_.schemaclassname}}
                                     })
@@ -828,7 +829,7 @@ Function Get-ADForestReportInformation {
                     $DomainPrinters += @(Search-AD -SearchRoot "LDAP://$DomainDN" `
                                               -Filter "(objectCategory=printQueue)" `
                                               -Properties Name,ServerName,printShareName,location,drivername | 
-                                        Select @{n='Domain';e={$Dom.Name}},Name,ServerName,printShareName,location,driverName)
+                                        Select-Object @{n='Domain';e={$Dom.Name}},Name,ServerName,printShareName,location,driverName)
                     #endregion Printers
                     #endregion Domains
                 }
